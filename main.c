@@ -3,14 +3,15 @@
 #include "hardware/gpio.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
-#include <pico/stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define MAX_CAL_SAMPLE 200
-#define DEADZONE 10
+#define DEADZONE 5
+#define ADC_PIN 26
+#define ADC_CHANNEL 0
 
 enum {
   BLINK_NOT_MOUNTED = 250,
@@ -29,26 +30,23 @@ uint16_t update_max(uint16_t read, uint16_t max);
 /*------------- MAIN -------------*/
 int main(void) {
   // vars
-  uint16_t min = 0;
-  uint16_t max = 0;
+  uint16_t min = INT8_MIN;
+  uint16_t max = INT8_MAX;
   uint16_t read;
   int8_t mapped;
   // inits
   board_init();
   tusb_init();
   adc_init();
-  adc_gpio_init(26);
-  adc_select_input(0);
-  // initial calibration setup
-  read = adc_read();
-  min = update_min(read, min);
-  max = update_max(read, max);
+  adc_gpio_init(ADC_PIN);
+  adc_select_input(ADC_CHANNEL);
 
   // main loop
   while (1) {
     // hall sensor pooling
     read = adc_read();
     max = update_max(read, max);
+    min = update_min(read, min);
     mapped = map_value(read, min, max);
     // usb tasks and reporting
     tud_task();
@@ -175,16 +173,15 @@ void led_blinking_task(void) {
 
 // HELPERS
 uint16_t update_min(uint16_t read, uint16_t min) {
-  uint32_t sum = 0;
-  for (int i = 0; i < MAX_CAL_SAMPLE; i++) {
-    sum += read;
+  if (read < min) {
+    return read;
   }
-  return (sum / MAX_CAL_SAMPLE) + DEADZONE;
+  return min;
 }
 
 int8_t map_value(uint16_t val, uint16_t min, uint16_t max) {
-  int8_t r_min = 0;
-  int8_t r_max = 127;
+  int8_t r_min = INT8_MIN;
+  int8_t r_max = INT8_MAX;
   int8_t mapped = r_min + ((val - min) * (r_max - r_min) / (max - min));
   return mapped;
 }

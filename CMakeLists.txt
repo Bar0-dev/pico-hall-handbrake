@@ -16,13 +16,19 @@ pico_sdk_init()
 add_executable(${PROJECT_NAME} 
     main.c
 )
+target_sources(${PROJECT_NAME} PUBLIC
+        ${CMAKE_CURRENT_LIST_DIR}/main.c
+        ${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
+        )
+target_include_directories(${PROJECT_NAME} PUBLIC
+${CMAKE_CURRENT_LIST_DIR})
 
 # Create map/bin/hex/uf2 files
 pico_add_extra_outputs(${PROJECT_NAME})
 
 # Link to pico_stdlib (gpio, time, etc. functions)
 target_link_libraries(${PROJECT_NAME} 
-    pico_stdlib
+    pico_stdlib pico_unique_id tinyusb_device tinyusb_board hardware_adc
 )
 
 # Enable usb output, disable uart output
